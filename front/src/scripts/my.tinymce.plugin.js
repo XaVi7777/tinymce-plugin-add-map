@@ -1,15 +1,30 @@
 import 'es6-promise';
 import tinymce from 'tinymce';
-import mapboxgl from 'mapbox-gl';
-import { settings } from '../../settings';
 import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
+import html2canvas from 'html2canvas';
+import { settings } from '../../settings';
 
 export default (name) => tinymce.PluginManager.add(name, editor => {
 
   const createDialogConfig = () => {
+
     const dialogConfig = {
       title: 'Just a title',
-      url: 'http://127.0.0.1:5501/front/src/iframe.html',
+      size: 'large',
+
+      body: {
+        type: 'panel',
+        items: [
+          {
+            type: 'iframe',
+            name: 'iframe',
+            label: 'Description of iframe',
+            sandboxed: true,
+          }
+        ],
+      },
+
+
       buttons: [
         {
           type: 'cancel',
@@ -22,15 +37,26 @@ export default (name) => tinymce.PluginManager.add(name, editor => {
           text: 'Добавить карту'
         },
       ],
-      onAction: function (instance, trigger) {
-        instance.sendMessage({
-          mceAction: "customInsertAndClose"
-        });
+
+      initialData: {
+        iframe: settings.GEOCODER_HTML,
+      },
+
+      onAction: async function (api, details) {
+        if (details.name === 'insert-and-close') {
+          const iframe = document.getElementsByTagName('iframe')[1];
+
+          let iframeWindow = iframe.contentDocument;
+
+          const mapImg = await html2canvas(iframeWindow.querySelector('#map')).then(canvas => canvas.toDataURL());
+          editor.insertContent(`<img src="${mapImg}" alt="map">`)
+
+          api.close()
+        }
       }
     }
-    editor.windowManager.openUrl(dialogConfig);
+    editor.windowManager.open(dialogConfig);
   }
-
 
   editor.ui.registry.addButton(name, {
     icon: 'user',
@@ -40,10 +66,6 @@ export default (name) => tinymce.PluginManager.add(name, editor => {
     }
   });
 
-  editor.addCommand("iframeCommand", function (ui, value) {
-    console.log('value', value)
-    editor.insertContent(`<img src="${value}">`)
-  });
 });
 
 
