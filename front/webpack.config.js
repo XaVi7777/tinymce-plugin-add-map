@@ -18,6 +18,7 @@ module.exports = {
       target: 'http://localhost:4000'
     }],
   },
+
   module: {
     rules: [
       {

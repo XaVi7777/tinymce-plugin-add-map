@@ -1,7 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const mainRouter = require('./routes/mainRouter/mainRouter');
-
+const path = require('path');
 const options = require('./options');
 const PORT = process.env.PORT || 4000;
 
@@ -11,6 +11,7 @@ const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
+app.use('/static', express.static(path.join(__dirname, 'public')));
 
 app.use('/', mainRouter);
 
@@ -22,7 +23,7 @@ async function start() {
       useUnifiedTopology: true,
     });
 
-    
+
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
     });

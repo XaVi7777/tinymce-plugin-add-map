@@ -1,70 +1,76 @@
 import 'es6-promise';
 import tinymce from 'tinymce';
 import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
-import html2canvas from 'html2canvas';
 import { settings } from '../../settings';
 
-export default (name) => tinymce.PluginManager.add(name, editor => {
+export default name => tinymce.PluginManager.add(name, async editor => {
+  let id;
 
-  const createDialogConfig = () => {
+  const createDialogConfig = async (id) => {
 
+    console.log('dialog', id)
     const dialogConfig = {
       title: 'Just a title',
-      size: 'large',
-
-      body: {
-        type: 'panel',
-        items: [
-          {
-            type: 'iframe',
-            name: 'iframe',
-            label: 'Description of iframe',
-            sandboxed: true,
-          }
-        ],
-      },
-
+      url: 'http://localhost:4000/static/mapbox.html',
 
       buttons: [
         {
-          type: 'cancel',
-          text: 'Закрыть'
+          type: "custom",
+          name: id,
+          text: "Insert and Close",
+          primary: true,
+          align: "end"
         },
         {
-          type: 'custom',
-          name: 'insert-and-close',
-          primary: true,
-          text: 'Добавить карту'
-        },
+          type: "cancel",
+          name: "cancel",
+          text: "Close Dialog",
+        }
       ],
 
-      initialData: {
-        iframe: settings.GEOCODER_HTML,
-      },
-
-      onAction: async function (api, details) {
-        if (details.name === 'insert-and-close') {
-          const iframe = document.getElementsByTagName('iframe')[1];
-
-          let iframeWindow = iframe.contentDocument;
-
-          const mapImg = await html2canvas(iframeWindow.querySelector('#map')).then(canvas => canvas.toDataURL());
-          editor.insertContent(`<img src="${mapImg}" alt="map">`)
-
-          api.close()
-        }
+      onAction: async (api, details) => {
+        console.log(details.name)
+        api.sendMessage({
+          mceAction: "customInsertAndClose",
+          id: details.name,
+        });
       }
     }
-    editor.windowManager.open(dialogConfig);
+    editor.windowManager.openUrl(dialogConfig);
   }
 
   editor.ui.registry.addButton(name, {
     icon: 'user',
 
-    onAction: () => {
-      createDialogConfig();
+    onAction: async () => {
+      const response = await fetch(settings.API_URL);
+
+      const json = await response.json();
+      id = json.id
+      console.log('fetch', id)
+      createDialogConfig(id);
     }
   });
+
+  editor.addCommand('iframeCommand', async (_, value) => {
+
+    const response = await fetch(settings.API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ markers: value.markers, center: value.center, id }),
+    });
+
+    const json = await response.json();
+    if (json.success) {
+      editor.insertContent(`<img id=${id} src=${value.dataUrl} alt="map"/>`)
+    }
+  });
+
+  editor.on('click', async event => {
+    if (event.target.tagName === 'IMG') {
+      // const response = await fetch(``)
+    }
+  })
 
 });
 
